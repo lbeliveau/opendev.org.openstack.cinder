@@ -12,6 +12,14 @@
 #    WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
 #    License for the specific language governing permissions and limitations
 #    under the License.
+#
+# Copyright (c) 2021-2023 Wind River Systems, Inc.
+#
+# The right to copy, distribute, modify, or otherwise make use
+# of this software may be licensed only pursuant to the terms
+# of an applicable Wind River license agreement.
+#
+
 """Tests for Backup code."""
 
 import copy
@@ -30,6 +38,7 @@ from oslo_utils import timeutils
 
 import cinder
 from cinder.backup import api
+from cinder.backup.backup_context import BackupContext
 from cinder.backup import manager
 from cinder import context
 from cinder import db
@@ -82,6 +91,7 @@ class BaseBackupTest(test.TestCase):
                                 container='volumebackups',
                                 status=fields.BackupStatus.CREATING,
                                 size=1,
+                                location=None,
                                 object_count=0,
                                 project_id=str(uuid.uuid4()),
                                 service=None,
@@ -112,6 +122,7 @@ class BaseBackupTest(test.TestCase):
         kwargs['snapshot_id'] = snapshot_id
         kwargs['parent_id'] = parent_id
         kwargs['size'] = size
+        kwargs['location'] = None
         kwargs['object_count'] = object_count
         kwargs['temp_volume_id'] = temp_volume_id
         kwargs['temp_snapshot_id'] = temp_snapshot_id
@@ -221,6 +232,22 @@ class BaseBackupTest(test.TestCase):
 @ddt.ddt
 class BackupTestCase(BaseBackupTest):
     """Test Case for backups."""
+
+    def test_service_without_required_backup_context(self):
+        mock__service = self.mock_object(self.backup_mgr, '_service')
+        mock__service.backup_context_required = False
+        self.backup_mgr.service(self.ctxt, backup_context=None)
+
+        mock__service.assert_called_once_with(self.ctxt, db=None)
+
+    def test_service_with_required_backup_context(self):
+        mock__service = self.mock_object(self.backup_mgr, '_service')
+        mock__service.backup_context_required = True
+        backup_context = BackupContext('fake_location')
+        self.backup_mgr.service(self.ctxt, backup_context=backup_context)
+
+        mock__service.assert_called_once_with(
+            self.ctxt, db=None, backup_context=backup_context)
 
     @mock.patch.object(cinder.tests.fake_driver.FakeLoggingVolumeDriver,
                        'set_initialized')
@@ -950,7 +977,7 @@ class BackupTestCase(BaseBackupTest):
         backup_service = mock.Mock()
         backup_service.backup = mock.Mock(
             return_value=mock.sentinel.backup_update)
-        self.backup_mgr.service = lambda x: backup_service
+        self.backup_mgr.service = lambda *args, **kwargs: backup_service
 
         vol_id = self._create_volume_db_entry()
         backup = self._create_backup_db_entry(volume_id=vol_id)

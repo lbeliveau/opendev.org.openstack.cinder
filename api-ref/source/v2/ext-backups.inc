@@ -85,6 +85,7 @@ Response Parameters
    - is_incremental: is_incremental
    - data_timestamp: data_timestamp
    - snapshot_id: snapshot_id_2
+   - location: location
 
 Response Example
 ----------------
@@ -139,6 +140,7 @@ Response Parameters
    - is_incremental: is_incremental
    - data_timestamp: data_timestamp
    - snapshot_id: snapshot_id_2
+   - location: location
 
 Response Example
 ----------------
@@ -267,6 +269,7 @@ Request
    - name: name_1
    - project_id: project_id_path
    - snapshot_id: snapshot_id_2
+   - location: location
 
 Request Example
 ---------------

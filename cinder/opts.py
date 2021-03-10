@@ -11,7 +11,13 @@
 # implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-
+#
+# Copyright (c) 2021-2023 Wind River Systems, Inc.
+#
+# The right to copy, distribute, modify, or otherwise make use
+# of this software may be licensed only pursuant to the terms
+# of an applicable Wind River license agreement.
+#
 
 ###################################################################
 # WARNING!
@@ -37,6 +43,8 @@ from cinder.backup import driver as cinder_backup_driver
 from cinder.backup.drivers import ceph as cinder_backup_drivers_ceph
 from cinder.backup.drivers import gcs as cinder_backup_drivers_gcs
 from cinder.backup.drivers import glusterfs as cinder_backup_drivers_glusterfs
+from cinder.backup.drivers import multitenant_nfs as \
+    cinder_backup_drivers_multitenantnfs
 from cinder.backup.drivers import nfs as cinder_backup_drivers_nfs
 from cinder.backup.drivers import posix as cinder_backup_drivers_posix
 from cinder.backup.drivers import s3 as cinder_backup_drivers_s3
@@ -247,6 +255,7 @@ def list_opts():
                 cinder_backup_drivers_ceph.service_opts,
                 cinder_backup_drivers_gcs.gcsbackup_service_opts,
                 cinder_backup_drivers_glusterfs.glusterfsbackup_service_opts,
+                cinder_backup_drivers_multitenantnfs.nfsbackup_service_opts,
                 cinder_backup_drivers_nfs.nfsbackup_service_opts,
                 cinder_backup_drivers_posix.posixbackup_service_opts,
                 cinder_backup_drivers_s3.s3backup_service_opts,

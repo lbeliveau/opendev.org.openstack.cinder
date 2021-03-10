@@ -11,6 +11,13 @@
 #    WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
 #    License for the specific language governing permissions and limitations
 #    under the License.
+#
+# Copyright (c) 2021-2023 Wind River Systems, Inc.
+#
+# The right to copy, distribute, modify, or otherwise make use
+# of this software may be licensed only pursuant to the terms
+# of an applicable Wind River license agreement.
+#
 
 from unittest import mock
 from zoneinfo import ZoneInfo
@@ -33,6 +40,7 @@ fake_backup = {
     'volume_id': fake.VOLUME_ID,
     'status': fields.BackupStatus.CREATING,
     'size': 1,
+    'location': 'fake_location',
     'display_name': 'fake_name',
     'display_description': 'fake_description',
     'user_id': fake.USER_ID,
@@ -80,6 +88,13 @@ class TestBackup(test_objects.BaseObjectsTestCase):
         backup.create()
         self.assertEqual(fake_backup['id'], backup.id)
         self.assertEqual(fake_backup['volume_id'], backup.volume_id)
+
+    @mock.patch('cinder.db.backup_create', return_value=fake_backup)
+    def test_create_with_location(self, backup_create):
+        backup = objects.Backup(context=self.context)
+        backup.create()
+        self.assertEqual(fake_backup['id'], backup.id)
+        self.assertEqual(fake_backup['location'], backup.location)
 
     @mock.patch('cinder.db.backup_update')
     def test_save(self, backup_update):

@@ -14,6 +14,13 @@
 #    WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
 #    License for the specific language governing permissions and limitations
 #    under the License.
+#
+# Copyright (c) 2021-2023 Wind River Systems, Inc.
+#
+# The right to copy, distribute, modify, or otherwise make use
+# of this software may be licensed only pursuant to the terms
+# of an applicable Wind River license agreement.
+#
 
 """Handles all requests relating to the volume backups service."""
 
@@ -225,7 +232,8 @@ class API(base.Base):
                availability_zone: Optional[str] = None,
                force: bool = False,
                snapshot_id: Optional[str] = None,
-               metadata: Optional[dict] = None) -> 'objects.Backup':
+               metadata: Optional[dict] = None,
+               location: Optional[str] = None) -> 'objects.Backup':
         """Make the RPC call to create a volume backup."""
         volume = self.volume_api.get(context, volume_id)
         context.authorize(policy.CREATE_POLICY, target_obj=volume)
@@ -343,6 +351,7 @@ class API(base.Base):
             'parent_id': parent_id,
             'size': volume['size'],
             'snapshot_id': snapshot_id,
+            'location': location,
             'data_timestamp': data_timestamp,
             'parent': parent,
             'host': latest_host,

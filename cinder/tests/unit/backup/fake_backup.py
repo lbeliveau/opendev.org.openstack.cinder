@@ -11,6 +11,13 @@
 #    WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
 #    License for the specific language governing permissions and limitations
 #    under the License.
+#
+# Copyright (c) 2021-2023 Wind River Systems, Inc.
+#
+# The right to copy, distribute, modify, or otherwise make use
+# of this software may be licensed only pursuant to the terms
+# of an applicable Wind River license agreement.
+#
 
 from oslo_versionedobjects import fields
 
@@ -29,6 +36,7 @@ def fake_db_backup(**updates):
         'host': 'fake_host',
         'display_name': 'fake_name',
         'size': 5,
+        'location': 'fake_location',
         'display_description': 'fake_description',
         'service_metadata': 'fake_metadata',
         'service': 'fake_service',

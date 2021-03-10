@@ -10,6 +10,13 @@
 #    WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
 #    License for the specific language governing permissions and limitations
 #    under the License.
+#
+# Copyright (c) 2021-2023 Wind River Systems, Inc.
+#
+# The right to copy, distribute, modify, or otherwise make use
+# of this software may be licensed only pursuant to the terms
+# of an applicable Wind River license agreement.
+#
 
 """Unit tests for cinder.db.api."""
 
@@ -3195,6 +3202,7 @@ class DBAPIBackupTestCase(BaseTest):
             'service': 'service',
             'parent_id': "parent_id",
             'size': 1000,
+            'location': 'location',
             'object_count': 100,
             'temp_volume_id': 'temp_volume_id',
             'temp_snapshot_id': 'temp_snapshot_id',

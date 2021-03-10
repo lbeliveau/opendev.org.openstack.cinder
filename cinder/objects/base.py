@@ -11,6 +11,13 @@
 #    WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
 #    License for the specific language governing permissions and limitations
 #    under the License.
+#
+# Copyright (c) 2021-2023 Wind River Systems, Inc.
+#
+# The right to copy, distribute, modify, or otherwise make use
+# of this software may be licensed only pursuant to the terms
+# of an applicable Wind River license agreement.
+#
 
 """Cinder common internal object model"""
 
@@ -138,6 +145,7 @@ OBJ_VERSIONS = CinderObjectVersionsHistory()
 # TODO: (Z release) remove up to next TODO  and update
 #       CinderObjectVersionsHistory (was added in X release)
 OBJ_VERSIONS.add('1.39', {'Volume': '1.9', 'Snapshot': '1.6'})
+OBJ_VERSIONS.add('1.40', {'Backup': '1.8', 'BackupImport': '1.8'})
 
 
 class CinderObjectRegistry(base.VersionedObjectRegistry):

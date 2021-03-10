@@ -12,6 +12,13 @@
 #    WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
 #    License for the specific language governing permissions and limitations
 #    under the License.
+#
+# Copyright (c) 2021-2023 Wind River Systems, Inc.
+#
+# The right to copy, distribute, modify, or otherwise make use
+# of this software may be licensed only pursuant to the terms
+# of an applicable Wind River license agreement.
+#
 
 """Tests for Backup code."""
 
@@ -43,7 +50,7 @@ from cinder.tests.unit import utils
 # needed for stubs to work
 import cinder.volume
 
-NUM_ELEMENTS_IN_BACKUP = 17
+NUM_ELEMENTS_IN_BACKUP = 18
 
 
 @ddt.ddt
@@ -76,7 +83,8 @@ class BackupsAPITestCase(test.TestCase):
                                      snapshot_id=snapshot_id,
                                      container='volumebackups',
                                      size=1,
-                                     availability_zone='az1')
+                                     availability_zone='az1',
+                                     location='test_location')
         req = webob.Request.blank('/v3/%s/backups/%s' % (
                                   fake.PROJECT_ID, backup.id))
         req.method = 'GET'
@@ -93,6 +101,7 @@ class BackupsAPITestCase(test.TestCase):
         self.assertEqual(backup.id, res_dict['backup']['id'])
         self.assertEqual(22, res_dict['backup']['object_count'])
         self.assertEqual(1, res_dict['backup']['size'])
+        self.assertEqual('test_location', res_dict['backup']['location'])
         self.assertEqual(fields.BackupStatus.CREATING,
                          res_dict['backup']['status'])
         self.assertEqual(volume.id, res_dict['backup']['volume_id'])
@@ -357,6 +366,27 @@ class BackupsAPITestCase(test.TestCase):
         backup2.destroy()
         backup1.destroy()
 
+    def test_list_backups_detail_return_location(self):
+        backup1 = utils.create_backup(self.context, size=1,
+                                      location='test_location')
+        backup2 = utils.create_backup(self.context, size=1)
+
+        req = webob.Request.blank('/v3/%s/backups/detail' % fake.PROJECT_ID)
+        req.method = 'GET'
+        req.headers = mv.get_mv_header(mv.BACKUP_METADATA)
+        req.headers['Content-Type'] = 'application/json'
+        req.headers['Accept'] = 'application/json'
+        res = req.get_response(fakes.wsgi_app(
+            fake_auth_context=self.user_context))
+        res_dict = jsonutils.loads(res.body)
+
+        self.assertEqual('test_location',
+                         res_dict['backups'][1]['location'])
+        self.assertIsNone(res_dict['backups'][0]['location'])
+
+        backup2.destroy()
+        backup1.destroy()
+
     def test_list_backups_detail_return_metadata(self):
         backup1 = utils.create_backup(self.context, size=1,
                                       metadata={'key1': 'value1'})
@@ -539,6 +569,30 @@ class BackupsAPITestCase(test.TestCase):
 
         volume.destroy()
 
+    def test_create_backup_location_json(self):
+        volume = utils.create_volume(self.context, size=5)
+
+        body = {"backup": {"name": "nightly001",
+                           "description":
+                           "Nightly Backup 03-Sep-2012",
+                           "volume_id": volume.id,
+                           "container": "nightlybackups",
+                           "location": "test_location"
+                           }
+                }
+        req = webob.Request.blank('/v2/%s/backups' % fake.PROJECT_ID)
+        req.method = 'POST'
+        req.headers['Content-Type'] = 'application/json'
+        req.body = jsonutils.dump_as_bytes(body)
+        res = req.get_response(fakes.wsgi_app(
+            fake_auth_context=self.user_context))
+
+        res_dict = jsonutils.loads(res.body)
+        self.assertEqual(HTTPStatus.ACCEPTED, res.status_int)
+        self.assertIn('id', res_dict['backup'])
+
+        volume.destroy()
+
     @ddt.data({"backup": {"description": "   sample description",
                           "name": "   test name"}},
               {"backup": {"description": "sample description   ",
@@ -577,6 +631,45 @@ class BackupsAPITestCase(test.TestCase):
                          res_dict['backup']['name'])
         self.assertEqual(body['backup']['description'].strip(),
                          res_dict['backup']['description'])
+        volume.destroy()
+
+    @mock.patch('cinder.db.service_get_all')
+    def test_create_backup_with_location(self, _mock_service_get_all):
+        _mock_service_get_all.return_value = [
+            {'availability_zone': 'fake_az', 'host': 'testhost',
+             'disabled': 0, 'updated_at': timeutils.utcnow(),
+             'uuid': 'a3a593da-7f8d-4bb7-8b4c-f2bc1e0b4824',
+             'location': 'fake_location'}]
+
+        volume = utils.create_volume(self.context, size=1)
+        # Create a backup with location
+        body = {"backup": {"name": "nightly001",
+                           "description":
+                           "Nightly Backup 03-Sep-2012",
+                           "volume_id": volume.id,
+                           "container": "nightlybackups",
+                           'location': 'test_location', }
+                }
+        req = webob.Request.blank('/v3/%s/backups' % fake.PROJECT_ID)
+        req.method = 'POST'
+        req.headers = mv.get_mv_header(mv.BACKUP_METADATA)
+        req.headers['Content-Type'] = 'application/json'
+        req.body = jsonutils.dump_as_bytes(body)
+        res = req.get_response(fakes.wsgi_app(
+            fake_auth_context=self.user_context))
+        res_dict = jsonutils.loads(res.body)
+        # Get the new backup
+        req = webob.Request.blank('/v3/%s/backups/%s' % (
+                                  fake.PROJECT_ID, res_dict['backup']['id']))
+        req.method = 'GET'
+        req.headers = mv.get_mv_header(mv.BACKUP_METADATA)
+        req.headers['Content-Type'] = 'application/json'
+        res = req.get_response(fakes.wsgi_app(
+            fake_auth_context=self.user_context))
+        res_dict = jsonutils.loads(res.body)
+
+        self.assertEqual('test_location', res_dict['backup']['location'])
+
         volume.destroy()
 
     @mock.patch('cinder.db.service_get_all')

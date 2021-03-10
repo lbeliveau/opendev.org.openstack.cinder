@@ -14,6 +14,13 @@
 #    WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
 #    License for the specific language governing permissions and limitations
 #    under the License.
+#
+# Copyright (c) 2021-2023 Wind River Systems, Inc.
+#
+# The right to copy, distribute, modify, or otherwise make use
+# of this software may be licensed only pursuant to the terms
+# of an applicable Wind River license agreement.
+#
 
 """The backups api."""
 from http import HTTPStatus
@@ -169,6 +176,7 @@ class BackupsController(wsgi.Controller):
         force = strutils.bool_from_string(backup.get(
             'force', False), strict=True)
         snapshot_id = backup.get('snapshot_id', None)
+        location = backup.get('location', None)
         metadata = backup.get('metadata', None) if req_version.matches(
             mv.BACKUP_METADATA) else None
 
@@ -188,7 +196,8 @@ class BackupsController(wsgi.Controller):
             new_backup = self.backup_api.create(context, name, description,
                                                 volume_id, container,
                                                 incremental, availability_zone,
-                                                force, snapshot_id, metadata)
+                                                force, snapshot_id, metadata,
+                                                location=location)
         except (exception.InvalidVolume,
                 exception.InvalidSnapshot,
                 exception.InvalidVolumeMetadata,

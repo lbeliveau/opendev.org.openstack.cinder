@@ -12,6 +12,13 @@
 #    WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
 #    License for the specific language governing permissions and limitations
 #    under the License.
+#
+# Copyright (c) 2021-2023 Wind River Systems, Inc.
+#
+# The right to copy, distribute, modify, or otherwise make use
+# of this software may be licensed only pursuant to the terms
+# of an applicable Wind River license agreement.
+#
 
 """
 Common parameter types for validating request Body.
@@ -297,3 +304,9 @@ availability_zone = {
 
 
 optional_boolean = {'oneOf': [{'type': 'null'}, boolean]}
+
+
+location = {
+    'type': ['string', 'null'], 'minLength': 0, 'maxLength': 255,
+    'pattern': '^[a-zA-Z0-9-_/.:\\[\\]]*$'
+}

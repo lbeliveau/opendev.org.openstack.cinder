@@ -12,6 +12,13 @@
 #    WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
 #    License for the specific language governing permissions and limitations
 #    under the License.
+#
+# Copyright (c) 2021-2023 Wind River Systems, Inc.
+#
+# The right to copy, distribute, modify, or otherwise make use
+# of this software may be licensed only pursuant to the terms
+# of an applicable Wind River license agreement.
+#
 
 """
 Backup manager manages volume backups.
@@ -46,6 +53,7 @@ from oslo_utils import excutils
 from oslo_utils import importutils
 from oslo_utils import timeutils
 
+from cinder.backup.backup_context import BackupContext
 from cinder.backup import rpcapi as backup_rpcapi
 from cinder import context
 from cinder import exception
@@ -137,8 +145,15 @@ class BackupManager(manager.SchedulerDependentManager):
                         'configuration to the new path %s',
                         self.driver_name, new_name)
             self.driver_name = new_name
-        self.service = importutils.import_class(self.driver_name)
+        self._service = importutils.import_class(self.driver_name)
         self.message_api = message_api.API()
+
+
+    def service(self, context, db=None, backup_context=None):
+        """Instantiate the backup driver."""
+        if self._service.backup_context_required:
+            return self._service(context, backup_context=backup_context)
+        return self._service(context)
 
     @typing.no_type_check
     def init_host(self, **kwargs):
@@ -487,7 +502,8 @@ class BackupManager(manager.SchedulerDependentManager):
             context, snapshot_id) if snapshot_id else None
         previous_status = volume.get('previous_status', None)
 
-        backup_service = self.service(context)
+        backup_context = self.get_backup_context(backup)
+        backup_service = self.service(context, backup_context=backup_context)
         properties = volume_utils.brick_get_connector_properties(
             CONF.use_multipath_for_image_xfer, enforce_multipath=False)
 
@@ -762,7 +778,8 @@ class BackupManager(manager.SchedulerDependentManager):
     def _run_restore(self, context, backup, volume, volume_is_new):
         message_created = False
         orig_key_id = volume.encryption_key_id
-        backup_service = self.service(context)
+        backup_context = self.get_backup_context(backup)
+        backup_service = self.service(context, backup_context=backup_context)
 
         properties = volume_utils.brick_get_connector_properties(
             CONF.use_multipath_for_image_xfer, enforce_multipath=False)
@@ -912,7 +929,9 @@ class BackupManager(manager.SchedulerDependentManager):
 
         if backup.service:
             try:
-                backup_service = self.service(context)
+                backup_context = self.get_backup_context(backup)
+                backup_service = self.service(context,
+                                              backup_context=backup_context)
                 backup_service.delete_backup(backup)
             except Exception as err:
                 with excutils.save_and_reraise_exception():
@@ -1004,7 +1023,9 @@ class BackupManager(manager.SchedulerDependentManager):
 
         # Call driver to create backup description string
         try:
-            backup_service = self.service(context)
+            backup_context = self.get_backup_context(backup)
+            backup_service = self.service(context,
+                                          backup_context=backup_context)
             driver_info = backup_service.export_record(backup)
             backup_url = backup.encode_record(driver_info=driver_info)
             backup_record['backup_url'] = backup_url
@@ -1060,7 +1081,9 @@ class BackupManager(manager.SchedulerDependentManager):
 
                 # Extract driver specific info and pass it to the driver
                 driver_options = backup_options.pop('driver_info', {})
-                backup_service = self.service(context)
+                backup_context = self.get_backup_context(backup)
+                backup_service = self.service(context,
+                                              backup_context=backup_context)
                 backup_service.import_record(backup, driver_options)
             except Exception as err:
                 msg = str(err)
@@ -1261,3 +1284,10 @@ class BackupManager(manager.SchedulerDependentManager):
             'availability_zone': self.az
         }
         self.update_service_capabilities(backup_stats)
+
+    @staticmethod
+    def get_backup_context(backup):
+        LOG.info('Backup Context: %s.', backup.location)
+        if backup.location:
+            return BackupContext(backup.location)
+        return None

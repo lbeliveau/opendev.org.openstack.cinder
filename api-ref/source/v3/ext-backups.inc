@@ -100,6 +100,7 @@ Response Parameters
    - count: count
    - metadata: metadata_backup
    - user_id: user_id_backup
+   - location: location
    - encryption_key_id: encryption_key_id
    - backup_links: backup_links_optional
 
@@ -161,6 +162,7 @@ Response Parameters
    - os-backup-project-attr:project_id: os-backup-project-attr:project_id
    - metadata: metadata_backup
    - user_id: user_id_backup
+   - location: location
    - encryption_key_id: encryption_key_id
 
 Response Example
@@ -299,6 +301,7 @@ Request
    - force: force
    - name: name_optional
    - snapshot_id: snapshot_id_backup
+   - location: location
    - metadata: metadata_backup
    - availability_zone: availability_zone_backup
 

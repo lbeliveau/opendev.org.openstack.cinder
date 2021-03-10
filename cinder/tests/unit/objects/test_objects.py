@@ -11,6 +11,13 @@
 #    WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
 #    License for the specific language governing permissions and limitations
 #    under the License.
+#
+# Copyright (c) 2021-2023 Wind River Systems, Inc.
+#
+# The right to copy, distribute, modify, or otherwise make use
+# of this software may be licensed only pursuant to the terms
+# of an applicable Wind River license agreement.
+#
 
 from oslo_versionedobjects import fixture
 
@@ -23,9 +30,9 @@ from cinder.tests.unit import test
 # NOTE: The hashes in this list should only be changed if they come with a
 # corresponding version bump in the affected objects.
 object_data = {
-    'Backup': '1.7-fffdbcd5da3c30750916fa2cc0e8ffb5',
+    'Backup': '1.8-bd34de52c6633868f90bdf16ff5c7bbd',
     'BackupDeviceInfo': '1.0-74b3950676c690538f4bc6796bd0042e',
-    'BackupImport': '1.7-fffdbcd5da3c30750916fa2cc0e8ffb5',
+    'BackupImport': '1.8-bd34de52c6633868f90bdf16ff5c7bbd',
     'BackupList': '1.0-15ecf022a68ddbb8c2a6739cfc9f8f5e',
     'CleanupRequest': '1.0-e7c688b893e1d5537ccf65cc3eb10a28',
     'Cluster': '1.1-e2c533eb8cdd8d229b6c45c6cf3a9e2c',

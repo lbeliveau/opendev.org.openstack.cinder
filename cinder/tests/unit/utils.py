@@ -12,6 +12,12 @@
 #    License for the specific language governing permissions and limitations
 #    under the License.
 #
+# Copyright (c) 2021-2023 Wind River Systems, Inc.
+#
+# The right to copy, distribute, modify, or otherwise make use
+# of this software may be licensed only pursuant to the terms
+# of an applicable Wind River license agreement.
+#
 
 import datetime
 import functools
@@ -353,6 +359,7 @@ def create_backup(ctxt,
                   availability_zone=None,
                   host=None,
                   metadata=None,
+                  location=None,
                   **kwargs):
     """Create a backup object."""
     values = {
@@ -366,6 +373,7 @@ def create_backup(ctxt,
         'availability_zone': availability_zone or 'fake',
         'service': 'fake',
         'size': size or 5 * 1024 * 1024,
+        'location': location,
         'object_count': 22,
         'host': host or socket.gethostname(),
         'parent_id': parent_id,

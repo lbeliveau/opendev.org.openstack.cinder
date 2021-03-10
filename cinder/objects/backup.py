@@ -11,6 +11,13 @@
 #    WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
 #    License for the specific language governing permissions and limitations
 #    under the License.
+#
+# Copyright (c) 2021-2023 Wind River Systems, Inc.
+#
+# The right to copy, distribute, modify, or otherwise make use
+# of this software may be licensed only pursuant to the terms
+# of an applicable Wind River license agreement.
+#
 
 from oslo_config import cfg
 from oslo_serialization import base64
@@ -41,7 +48,8 @@ class Backup(base.CinderPersistentObject, base.CinderObject,
     # Version 1.5: Add metadata
     # Version 1.6: Add encryption_key_id
     # Version 1.7: Add parent
-    VERSION = '1.7'
+    # Version 1.8: Add location
+    VERSION = '1.8'
 
     OPTIONAL_FIELDS = ('metadata', 'parent')
 
@@ -61,6 +69,7 @@ class Backup(base.CinderPersistentObject, base.CinderObject,
         'status': c_fields.BackupStatusField(nullable=True),
         'fail_reason': fields.StringField(nullable=True),
         'size': fields.IntegerField(nullable=True),
+        'location': fields.StringField(nullable=True),
 
         'display_name': fields.StringField(nullable=True),
         'display_description': fields.StringField(nullable=True),
