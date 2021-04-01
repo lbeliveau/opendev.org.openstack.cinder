@@ -236,6 +236,7 @@ class BackupTestCase(BaseBackupTest):
     def test_service_without_required_backup_context(self):
         mock__service = self.mock_object(self.backup_mgr, '_service')
         mock__service.backup_context_required = False
+        mock__service.is_multidriver = False
         self.backup_mgr.service(self.ctxt, backup_context=None)
 
         mock__service.assert_called_once_with(self.ctxt, db=None)
@@ -243,11 +244,31 @@ class BackupTestCase(BaseBackupTest):
     def test_service_with_required_backup_context(self):
         mock__service = self.mock_object(self.backup_mgr, '_service')
         mock__service.backup_context_required = True
-        backup_context = BackupContext('fake_location')
+        mock__service.is_multidriver = False
+        backup_context = BackupContext(driver='fake_driver',
+                                       location='fake_location')
         self.backup_mgr.service(self.ctxt, backup_context=backup_context)
 
         mock__service.assert_called_once_with(
             self.ctxt, db=None, backup_context=backup_context)
+
+    def test_service_multidriver(self):
+        mock__service = self.mock_object(self.backup_mgr, '_service')
+        mock__service.backup_context_required.side_effect = [True, False]
+        mock__service.is_multidriver = True
+        backup_context = BackupContext(driver='fake_driver',
+                                       location='fake_location')
+        self.backup_mgr.service(self.ctxt, backup_context=backup_context)
+
+        mock__service.assert_called_once_with(backup_context=backup_context)
+
+    def test_service_raises(self):
+        mock__service = self.mock_object(self.backup_mgr, '_service')
+        mock__service.backup_context_required = False
+        mock__service.is_multidriver = False
+        mock__service.side_effect = RuntimeError
+        self.assertRaises(exception.BackupDriverException,
+                          self.backup_mgr.service, self.ctxt)
 
     @mock.patch.object(cinder.tests.fake_driver.FakeLoggingVolumeDriver,
                        'set_initialized')

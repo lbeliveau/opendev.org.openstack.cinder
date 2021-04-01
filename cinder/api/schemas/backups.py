@@ -44,7 +44,7 @@ create = {
                 'force': parameter_types.boolean,
                 'name': parameter_types.name_allow_zero_min_length,
                 'snapshot_id': parameter_types.uuid_allow_null,
-                'location': parameter_types.location,
+                'location': parameter_types.optional_backup_location,
             },
             'required': ['volume_id'],
             'additionalProperties': False,

@@ -16,6 +16,7 @@
 from http import client as http
 import re
 
+import ddt
 import fixtures
 
 from cinder.api.openstack import api_version_request as api_version
@@ -500,3 +501,65 @@ class DatetimeTestCase(APIValidationTestCase):
                          self.post(body={
                              'foo': '2017-01-14T01:00:00Z'}, req=FakeRequest()
                          ))
+
+
+@ddt.ddt
+class ParseBackupLocationTestCase(APIValidationTestCase):
+
+    def setUp(self):
+        schema = {
+            'type': 'object',
+            'properties': {
+                'location': {
+                    'type': 'string',
+                    'format': 'backup_location',
+                },
+            },
+        }
+        super(ParseBackupLocationTestCase, self).setUp(schema=schema)
+
+    @ddt.data(
+        'ceph',
+        'ceph://',
+        '11.22.33.44:/',
+        '11.22.33.44:/backups',
+        '11.22.33.44:567:/backups/2',
+        '[aa:bb::ee:ff]:/',
+        '[aaaa:bbbb::]:/backups/',
+        '[::eeee:ffff]:5678:/backups/1/2.3/',
+        'nfsserver:/',
+        'nfsserver1.com:/',
+        'nfs-server-2.com:/backups/',
+        'nfs.server.3.com:5678:/backups/1/2-3/',
+        'nfs://11.22.33.44:/',
+        'nfs://[aa:bb::ee:ff]:/backups',
+        'nfs://nfs.server.3.com:56789:/backups/1/2_3/',
+    )
+    def test_validate_backup_location(self, backup_location):
+        self.assertEqual('Validation succeeded.',
+                         self.post(body={'location': backup_location},
+                                   req=FakeRequest()))
+
+    @ddt.data(
+        'd',                                # invalid driver
+        'd://',                             # invalid driver
+        '11.22.33:/',                       # invalid ipv4
+        '11.22.33.444:/',                   # invalid ipv4
+        'aa:bb::ee:ff:/',                   # ipv6 without brackets
+        '[aaaaa::fffff]:/',                 # invalid ipv6
+        'nfs_server_3.com:/',               # invalid qualified domain
+        '11.22.33.44:567890:/',             # invalid port
+        ':/backups',                        # missing host address
+        'nfsserver1.com:',                  # missing path
+        'nfsserver1.com/backups/',          # missing path separator
+        '[aa:bb::ee:ff]:backups/',          # relative path
+        '[aa:bb::ee:ff]:/backups/1/2@3/',   # invalid path
+    )
+    def test_validate_backup_location_fails(self, backup_location):
+        detail = ("Invalid input for field/attribute location. "
+                  "Value: %(location)s. "
+                  "'%(location)s' is not a 'backup_location'") \
+            % {'location': backup_location}
+        self.check_validation_error(self.post,
+                                    body={'location': backup_location},
+                                    expected_detail=detail)

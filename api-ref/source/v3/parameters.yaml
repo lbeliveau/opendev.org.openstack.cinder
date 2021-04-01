@@ -782,6 +782,33 @@ backup_id:
   required: false
   type: string
   min_version: 3.47
+backup_location:
+  description: |
+    The backup location on format [driver://][host:path].
+
+    'driver' must be one of ('ceph', 'nfs'). It must be provided if
+    cinder-backup is using multidriver as backup service, and must not
+    be provided if cinder-backup is using multitenant NFS as backup service.
+
+    'host:path' must be a valid NFS hostpath, where 'host' is a domain name,
+    IPv4 or bracketed IPv6, and 'path' is a absolute path. It must be
+    provided if cinder-backup is using multidriver as backup service
+    and the 'driver' is 'nfs', or if cinder-backup is using multitenant NFS
+    as backup service.
+
+    For example: "ceph", "nfs://10.10.10.10:/backups",
+    "[10:10::10:10]:/backups", "nfs1.example.com:/backups".
+
+    Default is None.
+  in: body
+  required: False
+  type: string
+backup_location_2:
+  description: |
+    The backup location.
+  in: body
+  required: False
+  type: string
 backup_links_optional:
   description: |
     An array containing an object with the following fields:

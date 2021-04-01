@@ -151,9 +151,25 @@ class BackupManager(manager.SchedulerDependentManager):
 
     def service(self, context, db=None, backup_context=None):
         """Instantiate the backup driver."""
-        if self._service.backup_context_required:
-            return self._service(context, backup_context=backup_context)
-        return self._service(context)
+        driver = self._service
+        try:
+            if driver.is_multidriver:
+                multidriver = driver(backup_context=backup_context)
+                driver = multidriver.get_driver()
+
+            if driver.backup_context_required:
+                backup_service = driver(context, db=db,
+                                        backup_context=backup_context)
+            else:
+                backup_service = driver(context, db=db)
+        except RuntimeError as error:
+            err_msg = "Failed to initialize backup driver."
+            LOG.exception(err_msg, resource={'type': 'driver',
+                                             'id': self.__class__.__name__})
+            raise exception.BackupDriverException(reason=err_msg) from error
+        else:
+            LOG.info("Backup driver was successfully initialized.")
+            return backup_service
 
     @typing.no_type_check
     def init_host(self, **kwargs):
@@ -502,7 +518,7 @@ class BackupManager(manager.SchedulerDependentManager):
             context, snapshot_id) if snapshot_id else None
         previous_status = volume.get('previous_status', None)
 
-        backup_context = self.get_backup_context(backup)
+        backup_context = BackupContext.from_backup(backup)
         backup_service = self.service(context, backup_context=backup_context)
         properties = volume_utils.brick_get_connector_properties(
             CONF.use_multipath_for_image_xfer, enforce_multipath=False)
@@ -778,7 +794,7 @@ class BackupManager(manager.SchedulerDependentManager):
     def _run_restore(self, context, backup, volume, volume_is_new):
         message_created = False
         orig_key_id = volume.encryption_key_id
-        backup_context = self.get_backup_context(backup)
+        backup_context = BackupContext.from_backup(backup)
         backup_service = self.service(context, backup_context=backup_context)
 
         properties = volume_utils.brick_get_connector_properties(
@@ -929,7 +945,7 @@ class BackupManager(manager.SchedulerDependentManager):
 
         if backup.service:
             try:
-                backup_context = self.get_backup_context(backup)
+                backup_context = BackupContext.from_backup(backup)
                 backup_service = self.service(context,
                                               backup_context=backup_context)
                 backup_service.delete_backup(backup)
@@ -1023,7 +1039,7 @@ class BackupManager(manager.SchedulerDependentManager):
 
         # Call driver to create backup description string
         try:
-            backup_context = self.get_backup_context(backup)
+            backup_context = BackupContext.from_backup(backup)
             backup_service = self.service(context,
                                           backup_context=backup_context)
             driver_info = backup_service.export_record(backup)
@@ -1081,7 +1097,7 @@ class BackupManager(manager.SchedulerDependentManager):
 
                 # Extract driver specific info and pass it to the driver
                 driver_options = backup_options.pop('driver_info', {})
-                backup_context = self.get_backup_context(backup)
+                backup_context = BackupContext.from_backup(backup)
                 backup_service = self.service(context,
                                               backup_context=backup_context)
                 backup_service.import_record(backup, driver_options)
@@ -1284,10 +1300,3 @@ class BackupManager(manager.SchedulerDependentManager):
             'availability_zone': self.az
         }
         self.update_service_capabilities(backup_stats)
-
-    @staticmethod
-    def get_backup_context(backup):
-        LOG.info('Backup Context: %s.', backup.location)
-        if backup.location:
-            return BackupContext(backup.location)
-        return None

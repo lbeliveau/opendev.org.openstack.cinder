@@ -29,6 +29,7 @@ from oslo_utils import uuidutils
 import webob.exc
 
 from cinder.api import api_utils
+from cinder.api.validation import backup_location_validators as bkp_validators
 from cinder import db
 from cinder import exception
 from cinder.i18n import _
@@ -395,6 +396,19 @@ def _validate_key_size(param_value):
         if not strutils.is_int_like(param_value):
             raise exception.InvalidInput(reason=(
                 _('key_size must be an integer.')))
+    return True
+
+
+@jsonschema.FormatChecker.cls_checks('backup_location',
+                                     exception.InvalidBackupLocation)
+def _validate_backup_location(param_value):
+    if param_value:
+        driver, location = utils.parse_backup_location(param_value)
+        try:
+            bkp_validators.validate_backup_driver(driver)
+            bkp_validators.validate_backup_hostpath(location)
+        except ValueError as error:
+            raise exception.InvalidBackupLocation(reason=error)
     return True
 
 

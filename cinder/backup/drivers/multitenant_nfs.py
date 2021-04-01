@@ -20,7 +20,9 @@ from oslo_concurrency import processutils as putils
 from oslo_config import cfg
 from oslo_log import log as logging
 
+from cinder.backup import driver
 from cinder.backup.drivers import posix
+from cinder import exception
 from cinder import interface
 from cinder import utils
 
@@ -47,16 +49,17 @@ CONF.register_opts(nfsbackup_service_opts)
 
 
 @interface.backupdriver
-class MultiTenantNFSBackupDriver(posix.PosixBackupDriver):
+class MultiTenantNFSBackupDriver(driver.BackupDriverWithContext,
+                                 posix.PosixBackupDriver):
     """Provides backup, restore and delete using NFS supplied repository."""
-    backup_context_required = True
 
-    def __init__(self, context, db=None, backup_context=None):
+    def __init__(self, context, backup_context=None):
         self.backup_mount_point_base = CONF.backup_mount_point_base
         self.mount_options = CONF.backup_mount_options
-        self.backup_location = getattr(backup_context, "location", None)
+        self.backup_context = backup_context
         self._execute = putils.execute
         self._root_helper = utils.get_root_helper()
+        self.check_for_backup_context_error()
         backup_path = self._init_backup_repo_path()
         LOG.debug("Using NFS backup repository: %s", backup_path)
         super(MultiTenantNFSBackupDriver, self).__init__(
@@ -65,10 +68,14 @@ class MultiTenantNFSBackupDriver(posix.PosixBackupDriver):
     def check_for_setup_error(self):
         return
 
+    def check_for_backup_context_error(self):
+        if self.backup_context and self.backup_context.location is None:
+            error_message = "backup location wasn't provided."
+            raise exception.BackupDriverException(reason=error_message)
+
     def _init_backup_repo_path(self):
-        if self.backup_location is None:
-            LOG.info("_init_backup_repo_path: "
-                     "backup_location is not set in backup context.")
+        if self.backup_context is None:
+            LOG.info("Backup context isn't set.")
             return
 
         remotefsclient = remotefs_brick.RemoteFsClient(
@@ -81,11 +88,12 @@ class MultiTenantNFSBackupDriver(posix.PosixBackupDriver):
             (brick_exception.BrickException, putils.ProcessExecutionError),
             retries=CONF.backup_mount_attempts)
         def mount():
-            remotefsclient.mount(self.backup_location)
+            remotefsclient.mount(self.backup_context.location)
 
         mount()
         # Ensure we can write to this share
-        mount_path = remotefsclient.get_mount_point(self.backup_location)
+        mount_path = remotefsclient.get_mount_point(
+            self.backup_context.location)
 
         group_id = os.getegid()
         current_group_id = utils.get_file_gid(mount_path)

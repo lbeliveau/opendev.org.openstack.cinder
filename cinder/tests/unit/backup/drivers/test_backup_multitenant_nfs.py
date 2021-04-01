@@ -3,6 +3,7 @@
 # The right to copy, distribute, modify, or otherwise make use
 # of this software may be licensed only pursuant to the terms
 # of an applicable Wind River license agreement.
+#
 
 """Tests for Backup NFS driver."""
 
@@ -15,9 +16,10 @@ from os_brick import exception as brick_exception
 from os_brick.remotefs import remotefs as remotefs_brick
 from oslo_config import cfg
 
-from cinder.backup.backup_context import BackupContext
+from cinder.backup import backup_context
 from cinder.backup.drivers import multitenant_nfs as mtnfs
 from cinder import context
+from cinder import exception
 from cinder import test
 from cinder.tests.unit import fake_constants as fake
 
@@ -57,20 +59,37 @@ class BackupNFSShareTestCase(test.TestCase):
         self.mock_object(mtnfs.MultiTenantNFSBackupDriver,
                          '_init_backup_repo_path',
                          return_value=FAKE_BACKUP_PATH)
-        context = BackupContext(location=FAKE_BACKUP_LOCATION)
+        context = backup_context.BackupContext(driver=None,
+                                               location=FAKE_BACKUP_LOCATION)
         driver = mtnfs.MultiTenantNFSBackupDriver(self.ctxt,
                                                   backup_context=context)
-        self.assertEqual(FAKE_BACKUP_LOCATION, driver.backup_location)
+        self.assertEqual(FAKE_BACKUP_LOCATION, driver.backup_context.location)
 
-    def test_check_configuration(self):
+    def test_check_for_setup_error(self):
         self.mock_object(mtnfs.MultiTenantNFSBackupDriver,
                          '_init_backup_repo_path',
                          return_value=FAKE_BACKUP_PATH)
-        context = BackupContext(location=FAKE_BACKUP_LOCATION)
+        context = backup_context.BackupContext(driver=None,
+                                               location=FAKE_BACKUP_LOCATION)
         driver = mtnfs.MultiTenantNFSBackupDriver(self.ctxt,
                                                   backup_context=context)
         driver.check_for_setup_error()
-        self.assertTrue(True)
+
+    def test_check_for_backup_context_error(self):
+        self.mock_object(mtnfs.MultiTenantNFSBackupDriver,
+                         '_init_backup_repo_path',
+                         return_value=FAKE_BACKUP_PATH)
+        context = backup_context.BackupContext(driver=None,
+                                               location=FAKE_BACKUP_LOCATION)
+        driver = mtnfs.MultiTenantNFSBackupDriver(self.ctxt,
+                                                  backup_context=context)
+        driver.check_for_backup_context_error()
+
+    def test_check_for_backup_context_error_raises(self):
+        context = backup_context.BackupContext(driver=None, location=None)
+        self.assertRaises(exception.BackupDriverException,
+                          mtnfs.MultiTenantNFSBackupDriver,
+                          self.ctxt, backup_context=context)
 
     @mock.patch('os.getegid', return_value=FAKE_EGID)
     @mock.patch('cinder.utils.get_file_gid')
@@ -98,7 +117,8 @@ class BackupNFSShareTestCase(test.TestCase):
 
         with mock.patch.object(mtnfs.MultiTenantNFSBackupDriver,
                                '_init_backup_repo_path'):
-            context = BackupContext(location=FAKE_BACKUP_LOCATION)
+            context = backup_context.BackupContext(
+                driver=None, location=FAKE_BACKUP_LOCATION)
             driver = mtnfs.MultiTenantNFSBackupDriver(self.ctxt,
                                                       backup_context=context)
 
@@ -158,7 +178,8 @@ class BackupNFSShareTestCase(test.TestCase):
             brick_exception.BrickException] * 2
         with mock.patch.object(mtnfs.MultiTenantNFSBackupDriver,
                                '_init_backup_repo_path'):
-            context = BackupContext(location=FAKE_BACKUP_LOCATION)
+            context = backup_context.BackupContext(
+                location=FAKE_BACKUP_LOCATION)
             driver = mtnfs.MultiTenantNFSBackupDriver(self.ctxt,
                                                       backup_context=context)
 

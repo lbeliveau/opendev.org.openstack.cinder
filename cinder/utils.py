@@ -1003,6 +1003,19 @@ def create_ordereddict(adict: dict) -> OrderedDict:
                               key=operator.itemgetter(0)))
 
 
+def parse_backup_location(backup_location):
+    """Given a backup location string, parses and returns it as a tuple."""
+    driver = None
+    location = None
+    if "://" in backup_location:                        # driver://location
+        driver, location = backup_location.split("://")
+    elif "/" in backup_location:                        # location (host:/path)
+        location = backup_location
+    else:                                               # driver
+        driver = backup_location
+    return (driver, location)
+
+
 class Semaphore(object):
     """Custom semaphore to workaround eventlet issues with multiprocessing."""
     def __init__(self, limit):

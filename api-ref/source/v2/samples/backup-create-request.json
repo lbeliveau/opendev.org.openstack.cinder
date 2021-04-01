@@ -5,6 +5,6 @@
         "name": "backup001",
         "volume_id": "64f5d2fb-d836-4063-b7e2-544d5c1ff607",
         "incremental": true,
-        "location": "10.10.10.10:/cinder_backups"
+        "location": "nfs://10.10.10.10:/cinder_backups"
     }
 }

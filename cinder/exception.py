@@ -778,6 +778,10 @@ class InvalidBackup(Invalid):
     message = _("Invalid backup: %(reason)s")
 
 
+class InvalidBackupLocation(Invalid):
+    message = _("Invalid backup location: %(reason)s")
+
+
 class SwiftConnectionFailed(BackupDriverException):
     message = _("Connection to swift failed: %(reason)s")
 

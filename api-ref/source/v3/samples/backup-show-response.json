@@ -16,7 +16,7 @@
                 "rel": "bookmark"
             }
         ],
-        "location": "10.10.10.10:/cinder_backups",
+        "location": null,
         "name": "backup001",
         "object_count": 22,
         "os-backup-project-attr:project_id": "2c67a14be9314c5dae2ee6c4ec90cf0b",

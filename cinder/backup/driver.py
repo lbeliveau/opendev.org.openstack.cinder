@@ -354,6 +354,7 @@ class BackupMetadataAPI(base.Base):
 
 class BackupDriver(base.Base, metaclass=abc.ABCMeta):
     backup_context_required = False
+    is_multidriver = False
 
     def __init__(self, context):
         super().__init__()
@@ -440,4 +441,13 @@ class BackupDriver(base.Base, metaclass=abc.ABCMeta):
         :obj:`cinder.interface.backup_driver.BackupDriver.check_for_setup_error`
         for additional information.
         """
+        return
+
+
+class BackupDriverWithContext(BackupDriver, metaclass=abc.ABCMeta):
+    backup_context_required = True
+
+    @abc.abstractmethod
+    def check_for_backup_context_error(self):
+        """Method for checking the provided backup context."""
         return

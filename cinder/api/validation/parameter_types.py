@@ -306,7 +306,10 @@ availability_zone = {
 optional_boolean = {'oneOf': [{'type': 'null'}, boolean]}
 
 
-location = {
-    'type': ['string', 'null'], 'minLength': 0, 'maxLength': 255,
-    'pattern': '^[a-zA-Z0-9-_/.:\\[\\]]*$'
+optional_backup_location = {
+    'oneOf': [
+        {'type': 'null'},
+        {'type': 'string', 'minLength': 2, 'maxLength': 253,
+         'format': 'backup_location'}
+    ]
 }

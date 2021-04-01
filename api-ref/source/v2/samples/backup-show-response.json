@@ -16,7 +16,7 @@
                 "rel": "bookmark"
             }
         ],
-        "location": "10.10.10.10:/cinder-backups",
+        "location": "ceph",
         "name": "backup001",
         "object_count": 22,
         "size": 1,

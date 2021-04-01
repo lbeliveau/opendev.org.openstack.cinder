@@ -1206,6 +1206,31 @@ class BackupsAPITestCase(test.TestCase):
         self.assertEqual(HTTPStatus.BAD_REQUEST,
                          res_dict['badRequest']['code'])
 
+    def test_create_backup_with_invalid_location(self):
+        # need to create the volume referenced below first
+        volume = utils.create_volume(self.context, size=1)
+        body = {"backup": {"display_name": "nightly001",
+                           "display_description":
+                           "Nightly Backup 03-Sep-2012",
+                           "volume_id": volume.id,
+                           "container": "nightlybackups",
+                           "location": "nfs://nfs1.server@/backups"
+                           }
+                }
+        req = webob.Request.blank('/v3/%s/backups' % fake.PROJECT_ID)
+        req.method = 'POST'
+        req.headers['Content-Type'] = 'application/json'
+        req.body = jsonutils.dump_as_bytes(body)
+        res = req.get_response(fakes.wsgi_app(
+            fake_auth_context=self.user_context))
+        res_dict = jsonutils.loads(res.body)
+
+        self.assertEqual(HTTPStatus.BAD_REQUEST, res.status_int)
+        self.assertEqual(HTTPStatus.BAD_REQUEST,
+                         res_dict['badRequest']['code'])
+        self.assertIn('Invalid input for field/attribute location.',
+                      res_dict['badRequest']['message'])
+
     @mock.patch('cinder.db.service_get_all')
     def test_create_backup_WithOUT_enabled_backup_service(
             self,
