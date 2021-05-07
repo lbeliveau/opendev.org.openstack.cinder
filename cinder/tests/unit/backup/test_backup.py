@@ -746,6 +746,21 @@ class BackupTestCase(BaseBackupTest):
         self.assertEqual(fields.BackupStatus.ERROR, backup['status'])
         self.assertTrue(mock_run_backup.called)
 
+
+    def test_create_backup_driver_setup_raises(self):
+        """Test error handling when error occurs during driver setup."""
+        vol_id = self._create_volume_db_entry(size=1)
+        backup = self._create_backup_db_entry(volume_id=vol_id,
+                                              service="fake.service")
+
+        mock_service = self.mock_object(self.backup_mgr, 'service')
+        mock_service.side_effect = exception.BackupDriverException("error")
+        self.assertRaises(exception.BackupDriverException,
+                          self.backup_mgr.create_backup, self.ctxt, backup)
+        backup = db.backup_get(self.ctxt, backup.id)
+        self.assertEqual(fields.BackupStatus.ERROR, backup['status'])
+        self.assertEqual("fake.service", backup['service'])
+
     @mock.patch('cinder.backup.manager.BackupManager._start_backup')
     def test_create_backup_aborted(self, start_backup_mock):
         """Test error handling when abort occurs during backup creation."""

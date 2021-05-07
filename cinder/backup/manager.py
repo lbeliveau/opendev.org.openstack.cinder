@@ -462,9 +462,6 @@ class BackupManager(manager.SchedulerDependentManager):
             if not backup.availability_zone:
                 backup.availability_zone = self.az
 
-            backup.service = self.driver_name
-            backup.save()
-
             # Start backup, then continue_backup, then finish_backup
             self._start_backup(context, backup, volume)
         except Exception as err:
@@ -518,8 +515,20 @@ class BackupManager(manager.SchedulerDependentManager):
             context, snapshot_id) if snapshot_id else None
         previous_status = volume.get('previous_status', None)
 
+        # NOTE(dpereir1): when using multi-tenant nfs driver, the validation
+        # of the driver configuration will happen partially during the driver
+        # instantiation, since the nfs hostpath is provided by the user
+        # (backup location) during the the backup creation, and it can
+        # potentially fail because of an incorrect user input, causing the
+        # backup creation to fail consequently.
+        # In order to avoid the same driver instantiation error later, during
+        # the backup deletion, we want to persiste the driver type on backups
+        # database only if the driver was successfuly instantiated.
+
         backup_context = BackupContext.from_backup(backup)
         backup_service = self.service(context, backup_context=backup_context)
+        backup.service = self.driver_name
+
         properties = volume_utils.brick_get_connector_properties(
             CONF.use_multipath_for_image_xfer, enforce_multipath=False)
 
