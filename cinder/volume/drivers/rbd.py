@@ -41,6 +41,7 @@ except ImportError:
     rados = None
     rbd = None
 
+from cinder.backup import backup_context as bkp_ctx
 from cinder.common import constants
 from cinder import context
 from cinder import exception
@@ -2566,8 +2567,16 @@ class RBDDriver(driver.CloneableImageVD, driver.MigrateVD,
         To support incremental backups on Ceph to Ceph we don't clone
         the volume.
         """
+        ceph_driver = 'cinder.backup.drivers.ceph.CephBackupDriver'
+        multidriver = 'cinder.backup.drivers.multidriver.MultiBackupDriver'
+        backup_context = bkp_ctx.BackupContext.from_backup(backup)
 
-        if not ('backup.drivers.ceph' in backup.service) or backup.snapshot_id:
+        is_ceph_backup = (
+            backup.service == ceph_driver
+            or (backup.service == multidriver
+                and backup_context.driver == 'ceph'))
+
+        if not is_ceph_backup or backup.snapshot_id:
             return super(RBDDriver, self).get_backup_device(context, backup)
 
         volume = objects.Volume.get_by_id(context, backup.volume_id)

@@ -3477,17 +3477,19 @@ class RBDTestCase(test.TestCase):
                 'rbd', 'import', '--dest-pool', 'rbd', '--order', 22,
                 '/imgfile', self.volume_c.name)
 
+    @mock.patch('cinder.backup.backup_context.BackupContext.from_backup')
     @mock.patch('cinder.objects.Volume.get_by_id')
     @mock.patch('cinder.db.volume_glance_metadata_get', return_value={})
     @common_mocks
-    def test_get_backup_device_ceph(self, mock_gm_get, volume_get_by_id):
+    def test_get_backup_device_ceph(self, mock_gm_get,
+                                    volume_get_by_id, bkp_ctx_from_backup):
         # Use the same volume for backup (volume_a)
         volume_get_by_id.return_value = self.volume_a
         driver = self.driver
 
         self._create_backup_db_entry(fake.BACKUP_ID, self.volume_a['id'], 1)
         backup = objects.Backup.get_by_id(self.context, fake.BACKUP_ID)
-        backup.service = 'cinder.backup.drivers.ceph'
+        backup.service = 'cinder.backup.drivers.ceph.CephBackupDriver'
 
         ret = driver.get_backup_device(self.context, backup)
         self.assertEqual(ret, (self.volume_a, False))
@@ -3499,6 +3501,22 @@ class RBDTestCase(test.TestCase):
                   'user_id': userid, 'project_id': projectid}
         return db.backup_create(self.context, backup)['id']
 
+    @mock.patch('cinder.objects.Volume.get_by_id')
+    @mock.patch('cinder.db.volume_glance_metadata_get', return_value={})
+    def test_get_backup_device_multidriver_ceph(self,
+                                                mock_gm_get,
+                                                volume_get_by_id):
+        volume_get_by_id.return_value = self.volume_a
+        driver = self.driver
+
+        self._create_backup_db_entry(fake.BACKUP_ID, self.volume_a['id'], 1)
+        backup = objects.Backup.get_by_id(self.context, fake.BACKUP_ID)
+        backup.service = 'cinder.backup.drivers.multidriver.MultiBackupDriver'
+        backup.location = 'ceph'
+        ret = driver.get_backup_device(self.context, backup)
+        self.assertEqual(ret, (self.volume_a, False))
+
+    @mock.patch('cinder.backup.backup_context.BackupContext.from_backup')
     @mock.patch('cinder.volume.driver.BaseVD._get_backup_volume_temp_snapshot')
     @mock.patch('cinder.volume.driver.BaseVD._get_backup_volume_temp_volume')
     @mock.patch('cinder.objects.Volume.get_by_id')
@@ -3508,7 +3526,8 @@ class RBDTestCase(test.TestCase):
                                      mock_gm_get,
                                      volume_get_by_id,
                                      mock_get_temp_volume,
-                                     mock_get_temp_snapshot):
+                                     mock_get_temp_snapshot,
+                                     bkp_ctx_from_backup):
         # Use a cloned volume for backup (volume_b)
         self.volume_a.previous_status = 'in-use'
         mock_get_temp_volume.return_value = self.volume_b
