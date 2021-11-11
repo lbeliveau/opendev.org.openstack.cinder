@@ -41,6 +41,7 @@ from cinder import exception
 from cinder.message import message_field
 from cinder import objects
 from cinder.objects import fields
+from cinder.policies import volume_metadata as vol_meta_policy
 from cinder.policies import volumes as vol_policy
 from cinder import quota
 from cinder.tests import fake_driver
@@ -487,6 +488,32 @@ class VolumeTestCase(base.BaseVolumeTestCase):
                                                 metadata, False,
                                                 common.METADATA_TYPES.user)
         self.assertEqual(metadata, res)
+
+    def test_create_volume_metadata_existing_values(self):
+        metadata = {
+            'existing_key': 'new_value',
+            'new_key': 'new_value'
+        }
+
+        volume = tests_utils.create_volume(
+            self.context,
+            metadata={'existing_key': 'existing_value'},
+            **self.volume_params
+        )
+
+        def _fail_policy_authorize(policy, **_):
+            if policy == vol_meta_policy.UPDATE_POLICY:
+                raise exception.PolicyNotAuthorized(action='Test')
+
+        with mock.patch.object(self.context, 'authorize') as mock_auth:
+            mock_auth.side_effect = _fail_policy_authorize
+            self.assertRaises(
+                exception.PolicyNotAuthorized,
+                self.volume_api.create_volume_metadata,
+                self.context,
+                volume,
+                metadata
+            )
 
     @ddt.data('maintenance', 'uploading')
     def test_create_volume_metadata_maintenance(self, status):

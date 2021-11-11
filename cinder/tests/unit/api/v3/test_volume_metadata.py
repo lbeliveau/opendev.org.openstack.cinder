@@ -21,6 +21,7 @@ from cinder.api import microversions as mv
 from cinder.api.v3 import volume_metadata
 from cinder.api.v3 import volumes
 from cinder.backup import rpcapi as backup_rpcapi
+from cinder import context
 from cinder import db
 from cinder import exception
 from cinder.objects import base as obj_base
@@ -31,6 +32,7 @@ from cinder.tests.unit.api.v2 import test_volume_metadata as v2_test
 from cinder.tests.unit import fake_constants as fake
 from cinder.tests.unit import fake_volume
 from cinder.tests.unit import test
+from cinder.tests.unit import utils as tests_utils
 from cinder import volume
 from cinder.volume import api as volume_api
 
@@ -130,6 +132,8 @@ class VolumeMetaDataTest(test.TestCase):
         self.patch(
             'cinder.objects.Service.get_minimum_obj_version',
             return_value=obj_base.OBJ_VERSIONS.get_current())
+        self.context = context.get_admin_context()
+        self.context.user_id = fake.USER_ID
 
         def _get_minimum_rpc_version_mock(ctxt, binary):
             binary_map = {
@@ -195,8 +199,8 @@ class VolumeMetaDataTest(test.TestCase):
 
     @mock.patch.object(db, 'volume_metadata_update')
     def test_update_all(self, metadata_update):
-        fake_volume = {'id': self.req_id, 'status': 'available'}
-        fake_context = mock.Mock()
+        fake_volume = tests_utils.create_volume(self.context, id=self.req_id,
+                                                status='available')
         metadata_update.side_effect = return_new_volume_metadata
         req = fakes.HTTPRequest.blank(self.url, version=mv.ETAGS)
         req.method = 'PUT'
@@ -209,7 +213,7 @@ class VolumeMetaDataTest(test.TestCase):
             },
         }
         req.body = jsonutils.dump_as_bytes(expected)
-        req.environ['cinder.context'] = fake_context
+        req.environ['cinder.context'] = self.context
 
         with mock.patch.object(self.controller.volume_api,
                                'get') as get_volume:
@@ -217,19 +221,19 @@ class VolumeMetaDataTest(test.TestCase):
             res_dict = self.controller.update_all(req, self.req_id,
                                                   body=expected)
             self.assertEqual(expected, res_dict)
-            get_volume.assert_called_once_with(fake_context, self.req_id)
+            get_volume.assert_called_once_with(self.context, self.req_id)
 
     @mock.patch.object(db, 'volume_metadata_update')
     def test_update_item(self, metadata_update):
-        fake_volume = {'id': self.req_id, 'status': 'available'}
-        fake_context = mock.Mock()
+        fake_volume = tests_utils.create_volume(self.context, id=self.req_id,
+                                                status='available')
         metadata_update.side_effect = return_create_volume_metadata
         req = fakes.HTTPRequest.blank(self.url + '/key1', version=mv.ETAGS)
         req.method = 'PUT'
         body = {"meta": {"key1": "value1"}}
         req.body = jsonutils.dump_as_bytes(body)
         req.headers["content-type"] = "application/json"
-        req.environ['cinder.context'] = fake_context
+        req.environ['cinder.context'] = self.context
 
         with mock.patch.object(self.controller.volume_api,
                                'get') as get_volume:
@@ -238,7 +242,7 @@ class VolumeMetaDataTest(test.TestCase):
                                               body=body)
             expected = {'meta': {'key1': 'value1'}}
             self.assertEqual(expected, res_dict)
-            get_volume.assert_called_once_with(fake_context, self.req_id)
+            get_volume.assert_called_once_with(self.context, self.req_id)
 
     def test_create_metadata_keys_value_none(self):
         self.mock_object(db, 'volume_metadata_update',

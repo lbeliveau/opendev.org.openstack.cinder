@@ -1310,6 +1310,10 @@ class API(base.Base):
                     '%s status.') % volume['status']
             LOG.info(msg, resource=volume)
             raise exception.InvalidVolume(reason=msg)
+
+        if set(volume.metadata.keys()) & set(metadata.keys()):
+            context.authorize(vol_meta_policy.UPDATE_POLICY, target_obj=volume)
+
         return self.db.volume_metadata_update(context, volume['id'],
                                               metadata, delete, meta_type)
 
