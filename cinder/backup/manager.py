@@ -158,10 +158,9 @@ class BackupManager(manager.SchedulerDependentManager):
                 driver = multidriver.get_driver()
 
             if driver.backup_context_required:
-                backup_service = driver(context, db=db,
-                                        backup_context=backup_context)
+                backup_service = driver(context, backup_context=backup_context)
             else:
-                backup_service = driver(context, db=db)
+                backup_service = driver(context)
         except RuntimeError as error:
             err_msg = "Failed to initialize backup driver."
             LOG.exception(err_msg, resource={'type': 'driver',

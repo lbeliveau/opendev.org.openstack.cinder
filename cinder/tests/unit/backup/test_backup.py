@@ -239,7 +239,7 @@ class BackupTestCase(BaseBackupTest):
         mock__service.is_multidriver = False
         self.backup_mgr.service(self.ctxt, backup_context=None)
 
-        mock__service.assert_called_once_with(self.ctxt, db=None)
+        mock__service.assert_called_once_with(self.ctxt)
 
     def test_service_with_required_backup_context(self):
         mock__service = self.mock_object(self.backup_mgr, '_service')
@@ -250,7 +250,7 @@ class BackupTestCase(BaseBackupTest):
         self.backup_mgr.service(self.ctxt, backup_context=backup_context)
 
         mock__service.assert_called_once_with(
-            self.ctxt, db=None, backup_context=backup_context)
+            self.ctxt, backup_context=backup_context)
 
     def test_service_multidriver(self):
         mock__service = self.mock_object(self.backup_mgr, '_service')

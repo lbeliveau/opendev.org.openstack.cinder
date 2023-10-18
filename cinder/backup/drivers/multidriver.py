@@ -32,8 +32,7 @@ SUPPORTED_DRIVERS = tuple(_BACKUP_DRIVER_MAPPING.keys())
 class MultiBackupDriver(BackupDriverWithContext):
     is_multidriver = True
 
-    def __init__(self, context=None, db=None, backup_context=None):
-        self.db = db
+    def __init__(self, context=None, backup_context=None):
         self.context = context
         self.backup_context = backup_context
         self.check_for_backup_context_error()
@@ -75,10 +74,9 @@ class MultiBackupDriver(BackupDriverWithContext):
         for driver in _BACKUP_DRIVER_MAPPING.values():
             try:
                 if driver.backup_context_required:
-                    service = driver(self.context, db=self.db,
-                                     backup_context=self.backup_context)
+                    service = driver(self.context, backup_context=self.backup_context)
                 else:
-                    service = driver(self.context, db=self.db)
+                    service = driver(self.context)
                 service.check_for_setup_error()
             except (BackupDriverException, InvalidConfigurationValue) as error:
                 failed_services[driver.__name__] = error
