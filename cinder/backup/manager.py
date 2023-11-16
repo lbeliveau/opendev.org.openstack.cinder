@@ -499,17 +499,26 @@ class BackupManager(manager.SchedulerDependentManager):
                 volume.encryption_key_id)
             backup.save()
 
-        # NOTE(dpereir1): when using multi-tenant nfs driver, the validation
-        # of the driver configuration will happen partially during the driver
-        # instantiation, since the nfs hostpath is provided by the user
-        # (backup location) during the the backup creation, and it can
-        # potentially fail because of an incorrect user input, causing the
-        # backup creation to fail consequently.
-        # In order to avoid the same driver instantiation error later, during
-        # the backup deletion, we want to persiste the driver type on backups
-        # database only if the driver was successfuly instantiated.
-        backup.service = self.driver_name
-        backup.save()
+        try:
+            # NOTE(dpereir1): when using multi-tenant nfs driver, the validation
+            # of the driver configuration will happen partially during the driver
+            # instantiation, since the nfs hostpath is provided by the user
+            # (backup location) during the the backup creation, and it can
+            # potentially fail because of an incorrect user input, causing the
+            # backup creation to fail consequently.
+            # In order to avoid the same driver instantiation error later, during
+            # the backup deletion, we want to persiste the driver type on backups
+            # database only if the driver was successfuly instantiated.
+            backup_context = BackupContext.from_backup(backup)
+            self.service(context, backup_context=backup_context)
+
+            backup.service = self.driver_name
+            backup.save()
+        except Exception as err:
+            LOG.exception(
+                "Failed to persist driver type due to poor driver "
+                "initialization: %s", err
+            )
 
         # This is an async call to the volume manager.  We will get a
         # callback from the volume manager to continue once it's done.
@@ -526,47 +535,14 @@ class BackupManager(manager.SchedulerDependentManager):
             context, snapshot_id) if snapshot_id else None
         previous_status = volume.get('previous_status', None)
 
-        try:
-            backup_context = BackupContext.from_backup(backup)
-            backup_service = self.service(context, backup_context=backup_context)
-        except Exception as error:
-            # Return the status of the original volume
-            self.db.volume_update(
-                context, volume_id,
-                {'status': previous_status,
-                 'previous_status': 'error_backing-up'})
-
-            # Update the status of the backup to ERROR
-            volume_utils.update_backup_error(backup, str(error))
-            with backup.as_read_deleted():
-                backup.refresh()
-
-            try:
-                # Clean any snapshots
-                self._cleanup_temp_volumes_snapshots_when_backup_created(
-                    context, backup)
-            except Exception:
-                with excutils.save_and_reraise_exception():
-                    if not message_created:
-                        self.message_api.create_from_request_context(
-                            context,
-                            detail=
-                            message_field.Detail.BACKUP_CREATE_CLEANUP_ERROR)
-            finally:
-                # Create a request with the error message and end the backup creation
-                with excutils.save_and_reraise_exception():
-                    if not message_created:
-                        message_created = True
-                        self.message_api.create_from_request_context(
-                            context,
-                            detail=
-                            message_field.Detail.BACKUP_CREATE_DRIVER_ERROR)
-
         properties = volume_utils.brick_get_connector_properties(
             CONF.use_multipath_for_image_xfer, enforce_multipath=False)
 
         updates = {}
         try:
+            backup_context = BackupContext.from_backup(backup)
+            backup_service = self.service(context, backup_context=backup_context)
+
             try:
                 attach_info = self._attach_device(context,
                                                   backup_device.device_obj,
