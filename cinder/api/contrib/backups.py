@@ -179,6 +179,8 @@ class BackupsController(wsgi.Controller):
         location = backup.get('location', None)
         metadata = backup.get('metadata', None) if req_version.matches(
             mv.BACKUP_METADATA) else None
+        if metadata and not location:
+            location = metadata.get('location', None)
 
         if req_version.matches(mv.BACKUP_AZ):
             availability_zone = backup.get('availability_zone', None)
