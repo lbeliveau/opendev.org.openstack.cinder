@@ -1,5 +1,6 @@
 [gerrit]
-host=review.opendev.org
+host=ala-codereviewti-prod.wrs.com
 port=29418
-project=openstack/cinder.git
-defaultbranch=stable/2025.1
+project=cgcs/opendev.org.openstack.cinder
+defaultbranch=WRO_DEV_FROM_OPENSTACK_EPOXY_20251105
+
