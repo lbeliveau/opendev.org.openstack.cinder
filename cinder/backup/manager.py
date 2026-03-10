@@ -199,9 +199,9 @@ class BackupManager(manager.SchedulerDependentManager):
         try:
             init_loop = loopingcall.FixedIntervalLoopingCall(
                 self._setup_backup_driver, ctxt)
-            init_loop.start(interval=CONF.backup_driver_init_check_interval)
-        except loopingcall.LoopingCallDone:
-            LOG.info("Backup driver was successfully initialized.")
+            evt = init_loop.start(interval=CONF.backup_driver_init_check_interval)
+            evt.wait()
+            LOG.info("Backup driver setup test completed.")
         except Exception:
             LOG.exception("Failed to initialize driver.",
                           resource={'type': 'driver',

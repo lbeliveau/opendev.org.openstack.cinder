@@ -70,7 +70,6 @@ class MultiBackupDriver(BackupDriverWithContext):
                 raise BackupDriverException(reason=err_msg)
 
     def _check_for_setup_errors_on_supported_drivers(self):
-        failed_services = {}
         for driver in _BACKUP_DRIVER_MAPPING.values():
             try:
                 if driver.backup_context_required:
@@ -78,12 +77,8 @@ class MultiBackupDriver(BackupDriverWithContext):
                 else:
                     service = driver(self.context)
                 service.check_for_setup_error()
-            except (BackupDriverException, InvalidConfigurationValue) as error:
-                failed_services[driver.__name__] = error
-        if failed_services:
-            err_msg = "At least one of the supported drivers failed " \
-                      "during initialization: %r." % failed_services
-            raise BackupDriverException(reason=err_msg)
+            except Exception as exc:
+                LOG.exception(f"Setup test failed for driver '{driver.__name__}': {exc}")
 
     def __not_implemented(self):
         raise NotImplementedError
