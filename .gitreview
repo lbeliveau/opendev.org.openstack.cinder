@@ -2,5 +2,5 @@
 host=ala-codereviewti-prod.wrs.com
 port=29418
 project=cgcs/opendev.org.openstack.cinder
-defaultbranch=WRO_DEV_FROM_OPENSTACK_EPOXY_20251105
+defaultbranch=WRO_26.03
 
