@@ -313,3 +313,17 @@ optional_backup_location = {
          'format': 'backup_location'}
     ]
 }
+
+
+backup_metadata_allows_null = {
+    'type': ['object', 'null'],
+    'properties': {
+        'location': optional_backup_location,
+    },
+    'patternProperties': {
+        '^(?!location$)[a-zA-Z0-9-_:. /]{1,255}$': {
+            'type': 'string', 'maxLength': 255
+        }
+    },
+    'additionalProperties': False
+}

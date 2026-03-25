@@ -57,7 +57,7 @@ create = {
 
 create_backup_v343 = copy.deepcopy(create)
 create_backup_v343['properties']['backup']['properties'][
-    'metadata'] = parameter_types.metadata_allows_null
+    'metadata'] = parameter_types.backup_metadata_allows_null
 
 
 create_backup_v351 = copy.deepcopy(create_backup_v343)
