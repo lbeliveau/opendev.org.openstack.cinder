@@ -548,12 +548,13 @@ class RakutenCNSDriver(driver.VolumeDriver):
         """
         LOG.info("RakutenCNSDriver.create_volume()")
 
-        # TODO: Replication ?
         create_request = {
             'name': self._os_to_cns_volume_name(volume['id']),
             'size': f"{volume['size']}G",
             'storage_class': 'robin-block',
-            'namespace': 'default'
+            'namespace': 'default',
+            'protection': 'replication',
+            'replication': '2'
         }
 
         try:
