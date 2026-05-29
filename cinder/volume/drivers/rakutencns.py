@@ -299,8 +299,7 @@ class RakutenCNSAPI:
             job = self._get_job(jobid, debug)
             state = job["state"]
             error = job["error"]
-            if debug:
-                LOG.info("job state: %s, error: %s", state, error)
+            LOG.info("job state: %s, error: %s", state, error)
 
             if state == RakutenCNSJobState.COMPLETED.value:
                 return
@@ -480,7 +479,6 @@ class RakutenCNSDriver(driver.VolumeDriver):
         self.backend_name = self.configuration.safe_get('volume_backend_name') or 'Rakuten CNS'
         self.configuration.append_config_values(rakutencns_opts)
 
-        self._export_context = {}
         self._stats = None
         self._cns_api = None
         self._cns_username = self.configuration.safe_get('cns_username')
@@ -609,12 +607,6 @@ class RakutenCNSDriver(driver.VolumeDriver):
             mount_path = self._cns_api.volume_mount(mount_request)
             LOG.info("Volume mount path: %s", mount_path)
 
-            # Save the mount path for later use (e.g., in terminate_connection)
-            self._export_context[volume['id']] = {
-                'mount_path': mount_path,
-                'host': hostname
-            }
-
             return {'provider_location': mount_path}
         except Exception as e:
             raise exception.VolumeBackendAPIException(data=str(e))
@@ -635,27 +627,21 @@ class RakutenCNSDriver(driver.VolumeDriver):
         """
         LOG.info("RakutenCNSDriver.remove_export()")
         
-        # Retrieve export context for the volume to get the hostname for unmounting
-        export_context = self._export_context.get(volume['id'])
-        hostname = None
-        if export_context:
-            hostname = export_context.get('host')
-        else:
-            # Try to get where the volume is mounted if it's not stored in the context
-            # (this is the case if cinder-volume is reloaded and volumes were created)
-            get_request = {
-                'name': self._os_to_cns_volume_name(volume['id'])
-            }
+        # Try to get where the volume is mounted if it's not stored in the context
+        # (this is the case if cinder-volume is reloaded and volumes were created)
+        get_request = {
+            'name': self._os_to_cns_volume_name(volume['id'])
+        }
 
-            response = self._cns_api.volume_get(get_request)
+        response = self._cns_api.volume_get(get_request)
 
-            mounts = response.get('items', {}).get('mounts', [])
-            hostname = mounts[0].get('nodename') if mounts else None
+        mounts = response.get('items', {}).get('mounts', [])
+        hostname = mounts[0].get('nodename') if mounts else None
 
-            if not hostname:
-                # It's possible that the volume is not mounted (for e.g., volume was created and not attached to a VM),
-                # in this case continue silently.
-                return
+        if not hostname:
+            # It's possible that the volume is not mounted (for e.g., volume was created and not attached to a VM),
+            # in this case continue silently.
+            return
 
         unmount_request = {
             "action": "unmount",
