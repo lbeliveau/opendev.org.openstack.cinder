@@ -22,6 +22,7 @@ from cinder import exception
 from cinder import interface
 from cinder.volume import configuration
 from cinder.volume import driver
+from cinder.volume import volume_utils
 
 
 LOG = logging.getLogger(__name__)
@@ -36,8 +37,8 @@ ROBIN_SVC_PORT = 29442
 
 RETRIES_HTTPS_CONN = 5
 TIMEOUT_HTTPS_CONN = 5
-TIMEOUT_JOB = 10
-TIMEOUT_VOLUME = 10
+TIMEOUT_JOB = 90
+TIMEOUT_VOLUME = 90
 
 
 class RakutenCNSException(exception.VolumeBackendAPIException):
@@ -254,8 +255,6 @@ class RakutenCNSAPI:
                     self.token = self._get_token(self.username, self.password)
                 else:
                     last_error = RakutenCNSException(f"REST API call failed: {response.status}")
-                    if not jres['error'].get('transient', False):
-                        raise last_error
             except (
                     ConnectionRefusedError,
                     socket.timeout,
@@ -438,6 +437,26 @@ class RakutenCNSAPI:
         LOG.info("RakutenCNSAPI.volume_get()")
 
         return self._api_call('GET', f'/api/v6/robin_server/volumes', body, debug)
+
+    def snapshot_create(self, body: dict, debug: bool = False):
+        LOG.info("RakutenCNSAPI.snapshot_create()")
+
+        data = self._api_call('POST', f'/api/v6/robin_server/volume-snapshots', body, debug)
+        if data.get("jobid"):
+            self._wait_for_job_completion(data["jobid"], debug=debug)
+            LOG.info("Volume creation job completed successfully")            
+        else:
+            raise exception.VolumeBackendAPIException(data="snapshot create did not return jobid")
+
+    def snapshot_delete(self, body: dict, debug: bool = False):
+        LOG.info("RakutenCNSAPI.snapshot_delete()")
+
+        data = self._api_call('DELETE', f'/api/v6/robin_server/volume-snapshots', body, debug)
+        if data.get("jobid"):
+            self._wait_for_job_completion(data["jobid"], debug=debug)
+            LOG.info("Volume creation job completed successfully")            
+        else:
+            raise exception.VolumeBackendAPIException(data="snapshot delete did not return jobid")
     
     def disk_get_all(self, body: dict, debug: bool = False) -> dict:
         """
@@ -511,6 +530,12 @@ class RakutenCNSDriver(driver.VolumeDriver):
         """
         return f"wro-vol-{id}"
 
+    def _os_to_cns_snapshot_name(self, id):
+        """
+        Convert an OpenStack snapshot ID to a CNS snapshot name.
+        """
+        return f"wro-{id}"
+
     @staticmethod
     def get_driver_options():
         return rakutencns_opts
@@ -539,6 +564,20 @@ class RakutenCNSDriver(driver.VolumeDriver):
         if not self._cns_api:
             raise exception.VolumeBackendAPIException(data="CNS API client not initialized")
 
+    def _create_volume(self, name: str, size: str):
+        create_request = {
+            'name': name,
+            'size': size,
+            'namespace': 'default',
+            'protection': 'replication',
+            'replication': '2'
+        }
+
+        try:
+            self._cns_api.volume_create(create_request)
+        except Exception as e:
+            raise exception.VolumeBackendAPIException(data=str(e))
+
     def create_volume(self, volume):
         """
         Create a volume on the Rakuten CNS backend.
@@ -548,17 +587,8 @@ class RakutenCNSDriver(driver.VolumeDriver):
         """
         LOG.info("RakutenCNSDriver.create_volume()")
 
-        create_request = {
-            'name': self._os_to_cns_volume_name(volume['id']),
-            'size': f"{volume['size']}G",
-            'storage_class': 'robin-block',
-            'namespace': 'default',
-            'protection': 'replication',
-            'replication': '2'
-        }
-
         try:
-            self._cns_api.volume_create(create_request)
+            self._create_volume(self._os_to_cns_volume_name(volume['id']), f"{volume['size']}G")
         except Exception as e:
             raise exception.VolumeBackendAPIException(data=str(e))
         
@@ -630,11 +660,11 @@ class RakutenCNSDriver(driver.VolumeDriver):
         
         # Try to get where the volume is mounted if it's not stored in the context
         # (this is the case if cinder-volume is reloaded and volumes were created)
-        get_request = {
+        remove_request = {
             'name': self._os_to_cns_volume_name(volume['id'])
         }
 
-        response = self._cns_api.volume_get(get_request)
+        response = self._cns_api.volume_get(remove_request)
 
         mounts = response.get('items', {}).get('mounts', [])
         hostname = mounts[0].get('nodename') if mounts else None
@@ -645,9 +675,9 @@ class RakutenCNSDriver(driver.VolumeDriver):
             return
 
         unmount_request = {
-            "action": "unmount",
-            "name": self._os_to_cns_volume_name(volume['id']),
-            "hostname": hostname
+            'action': 'unmount',
+            'name': self._os_to_cns_volume_name(volume['id']),
+            'hostname': hostname
         }
 
         try:
@@ -655,19 +685,44 @@ class RakutenCNSDriver(driver.VolumeDriver):
         except Exception as e:
             raise exception.VolumeBackendAPIException(data=str(e))
 
+    def retype(self, context, volume, new_type, diff, host):
+        raise NotImplementedError
+
+    def migrate_volume(self, ctxt, volume, host, thin=False, mirror_count=0):
+        raise NotImplementedError
+
     def create_snapshot(self, snapshot):
         """
         Create a snapshot.
         """
         LOG.info("RakutenCNSDriver.create_snapshot()")
-        raise NotImplementedError
+        
+        snapshot_request = {
+            'action': 'snapshot',
+            'name': self._os_to_cns_volume_name(snapshot.volume_name),
+            'snapname': self._os_to_cns_snapshot_name(snapshot.name)
+        }
+
+        try:
+            response = self._cns_api.snapshot_create(snapshot_request)
+        except Exception as e:
+            raise exception.VolumeBackendAPIException(data=str(e))
 
     def delete_snapshot(self, snapshot):
         """
         Delete a snapshot.
         """
         LOG.info("RakutenCNSDriver.delete_snapshot()")
-        raise NotImplementedError
+
+        snapshot_request = {
+            'snapname': self._os_to_cns_snapshot_name(snapshot.name)
+        }
+
+        try:
+            response = self._cns_api.snapshot_delete(snapshot_request)
+        except Exception as e:
+            raise exception.VolumeBackendAPIException(data=str(e))
+
     
     def create_volume_from_snapshot(self, volume, snapshot):
         """
